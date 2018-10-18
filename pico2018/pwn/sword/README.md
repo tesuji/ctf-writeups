@@ -28,7 +28,7 @@ sword_lists      variable     27 sword.c          struct sword_list_s sword_list
 
 Create 1st chunks and "harden" it with 256 length character 'A'.
 
-```sh
+```py
 --- sword_lists ------------------------------------
 $1 = {{
     is_used = 1,
