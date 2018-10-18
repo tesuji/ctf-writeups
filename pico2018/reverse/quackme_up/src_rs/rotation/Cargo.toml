@@ -1,0 +1,6 @@
+[package]
+name = "rotation"
+version = "0.1.0"
+authors = ["Lzu Tao <1stpangu@gmail.com>"]
+
+[dependencies]

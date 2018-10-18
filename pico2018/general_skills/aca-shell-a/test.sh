@@ -1,0 +1,25 @@
+#!/bin/sh
+
+cat << EOF | base64 -d > a.txt
+G1pKDkkEcjVocuoxCcRVLdVR8CPIusoSi3hqqDyASvRonF5uj7DzNYra5Pj44LpTHyuCisJu1pvP6EaSh0BO0yGvtSQB0b
+FAA8TymY9fRLBl0le5isi1UT7GG2abvDvO085dGQT6pDok3bL
+dfyi624tXwzBeNV6tex0a29EZjIJds4IfmuPGhc0bEr
+8Km6VkeDFBtI3MVodtOcweLIiPYVyErxdUYR8311AMS
+ZhGKo5IYVnANui82EO0pjApNVXzAagjaNDg4mIDdGvlQwPcDP3JnuzS37rMGOylUuJa7M7E6mCAxV3BNHlq1eMIP8
+ErMOdTb8qNegpnPtZAWm9FrCT28G5
+PfIgKT4ZtSU6z94VpUTEaqQaZ4EVvB9GZ
+ZGsohjpMNWdfg5KWHfEMdaFeRDo13ia9RdYSqAuKS3QBLWkJ8MOiZmhM4UgKCmIyitFPlnVGKE
+MDhVC50DLwI3wWarOWfDwBKrdzJI23zsg
+rR9Ze5C6KyzctaH9315VkvMw9wMAMBq4456p0lPYT6ZKSUJkQaLKJS6yk3MpcZxkK6mm22Om5PUGFbJdOstdQ9My
+EOF
+
+# AipieG5Ua9aewei5ieSoh7aph
+# Xei2uu5suwangohceedaifohs
+# ahShaighaxahMooshuP1johgo
+# ahqueith5aekongieP4ahzugi
+# aik4hah9ilie9foru0Phoaph0
+# bah9Ech9oa4xaicohphahfaiG
+# ie7sheiP7su2At2ahw6iRikoe
+# of0Nee4laith8odaeLachoonu
+# poh9eij4Choophaweiwev6eev
+# poo3ipohGohThi9Cohverai7e
