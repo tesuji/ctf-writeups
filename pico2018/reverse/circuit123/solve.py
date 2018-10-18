@@ -20,8 +20,6 @@ def check_valid_range(x):
 
 
 def calculate(solver, xs):
-
-
     MOD_BASE = z3.BitVecVal(36, 8)
 
     solver.add(((xs[0] + xs[1]) % MOD_BASE) == 14)
