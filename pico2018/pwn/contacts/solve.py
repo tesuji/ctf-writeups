@@ -17,12 +17,13 @@ class Attack:
         self.p = None
 
 
-    def get_process(self):
+    def get_process(self, ld_preload=False):
         p = None
         if args.REMOTE:
             p = remote(self.host, self.port)
         else:
-            p = process('./%s' % self.elf_name)
+            env = {'LD_PRELOAD': './%s' % self.libc_name} if ld_preload else None
+            p = process('./%s' % self.elf_name, env=env)
             if args.GDB:
                 gdb.attach(p.pid, self.gdb_script)
         return p
@@ -150,10 +151,6 @@ class Attack:
             self.p.clean()
             self.p.sendline('ls -la')
             self.p.interactive()
-
-            # p.clean()
-            # p.sendline('ls -la')
-            # p.interactive()
 
 
 if __name__ == "__main__":
