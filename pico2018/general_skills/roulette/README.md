@@ -83,6 +83,6 @@ picoCTF{1_h0p3_y0u_f0uNd_b0tH_bUg5_8fb4d984}
 
 ## References
 
-https://stackoverflow.com/questions/5416414/signed-unsigned-comparisons
-http://www.cplusplus.com/reference/climits/
-https://piazza.com/class/jkimphnvxey1qo?cid=233
+- https://stackoverflow.com/questions/5416414/signed-unsigned-comparisons
+- http://www.cplusplus.com/reference/climits/
+- https://piazza.com/class/jkimphnvxey1qo?cid=233
