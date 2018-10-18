@@ -7,7 +7,7 @@ import sys
 from pprint import pprint
 #
 from pwn import context, p32, u32, log, remote, args, log
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 
 def pad(message):

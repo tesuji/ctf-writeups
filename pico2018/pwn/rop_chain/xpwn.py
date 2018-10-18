@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 from pwn import process, p32, u32, context, log
 from pwn import ELF
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 
 class ExploitInfo:

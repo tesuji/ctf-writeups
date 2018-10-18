@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 from pwn import *
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 class RemoteData:
     name    = '/problems/buffer-overflow-1_0_787812af44ed1f8151c893455eb1a613/vuln'

@@ -2,7 +2,7 @@
 import sys
 #
 from pwn import context, p32, u32, log, process, remote, args, sleep
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 
 class ExploitInfo:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 from pwn import *
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 class RemoteData:
     name    = '/problems/shellcode_4_99838609970da2f5f6cf39d6d9ed57cd/vuln'

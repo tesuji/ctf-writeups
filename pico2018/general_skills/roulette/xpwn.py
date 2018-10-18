@@ -3,7 +3,7 @@ import ctypes
 #
 from pwn import log, remote, u32, p32, process
 from pwn import ELF, context, args, sleep
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 
 class ExploitInfo:

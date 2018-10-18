@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 from pwn import *
-context.clear(arch='i386', os='linux', endian='little', word_size=32)
+context.clear(arch='i386', os='linux')
 
 
 class ExploitInfo:
