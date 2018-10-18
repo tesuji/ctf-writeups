@@ -1,14 +1,19 @@
 #! /usr/bin/env python
+import os
 #
 from pwn import context, p64, u64, log, process, remote, args
 from pwn import gdb, ELF
 context.clear(arch='amd64', os='linux')
 
 
+HERE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 class Attack:
-    def __init__(self, host, port, elf_name, libc_name, gdb_script=None):
+    def __init__(self, host, port, elf_name, libc_name, ld_linux_name=None, gdb_script=None):
         self.host, self.port = host, port
         self.elf_name, self.libc_name = elf_name, libc_name
+        self.ld_linux_name = ld_linux_name
         self.gdb_script = gdb_script
 
         self.elf = ELF(self.elf_name)
@@ -17,13 +22,18 @@ class Attack:
         self.p = None
 
 
-    def get_process(self, ld_preload=False):
+    def get_process(self, ld_preload=False, ld_linux=False):
         p = None
         if args.REMOTE:
             p = remote(self.host, self.port)
         else:
-            env = {'LD_PRELOAD': './%s' % self.libc_name} if ld_preload else None
-            p = process('./%s' % self.elf_name, env=env)
+            env = {'LD_PRELOAD': self.libc_name} if ld_preload else None
+            argv = []
+            if ld_linux:
+                argv.append(self.ld_linux_name)
+
+            argv.append(self.elf_name)
+            p = process(argv, env=env)
             if args.GDB:
                 gdb.attach(p.pid, self.gdb_script)
         return p
@@ -185,5 +195,9 @@ x/8xg &contacts
 printf "--- heap mapping -----------------------------------\n"
 x/32xg $con0 - 16
 """
+    elf_name = os.path.join(HERE_DIR, elf_name)
+    libc_name = os.path.join(HERE_DIR, libc_name)
+    ld_linux_name = os.path.join(HERE_DIR, ld_linux_name)
+
     attack = Attack(host, port, elf_name, libc_name, gdb_script)
     attack.exploit()

