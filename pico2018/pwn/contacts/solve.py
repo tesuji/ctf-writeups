@@ -10,14 +10,16 @@ HERE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Attack:
-    def __init__(self, host, port, elf_name, libc_name, ld_linux_name=None, gdb_script=None):
+    def __init__(self, host, port, elf_name, libc_name=None, ld_linux_name=None, gdb_script=None):
         self.host, self.port = host, port
         self.elf_name, self.libc_name = elf_name, libc_name
         self.ld_linux_name = ld_linux_name
         self.gdb_script = gdb_script
 
         self.elf = ELF(self.elf_name)
-        self.libc = ELF(self.libc_name)
+
+        if libc_name:
+            self.libc = ELF(self.libc_name)
 
         self.p = None
 
