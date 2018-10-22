@@ -10,9 +10,10 @@ HERE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Attack:
-    def __init__(self, host, port, elf_name, libc_name=None, ld_linux_name=None, gdb_script=None):
+    def __init__(self, host, port, elf_name, libc_name=None, lib_path=None, ld_linux_name=None, gdb_script=None):
         self.host, self.port = host, port
         self.elf_name, self.libc_name = elf_name, libc_name
+        self.lib_path = lib_path
         self.ld_linux_name = ld_linux_name
         self.gdb_script = gdb_script
 
@@ -29,7 +30,12 @@ class Attack:
         if args.REMOTE:
             p = remote(self.host, self.port)
         else:
-            env = {'LD_PRELOAD': self.libc_name} if ld_preload else None
+            env = {}
+            if self.lib_path:
+                env['LD_LIBRARY_PATH'] = self.lib_path
+            if ld_preload:
+                env['LD_PRELOAD'] = self.libc_name
+
             argv = []
             if ld_linux:
                 argv.append(self.ld_linux_name)
