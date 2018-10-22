@@ -1,0 +1,3 @@
+base64 -d ciphertext.txt > 1.txt
+py3 sol.py
+grep -i flag save_{0..255}

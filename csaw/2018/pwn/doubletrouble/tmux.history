@@ -1,0 +1,132 @@
+Reading symbols from ./doubletrouble...(no debugging symbols found)...done.
+warning: File "/home/phaptc/ctf/csaw/2018/pwn/doubletrouble/.gdbinit" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+To enable execution of this file add
+        add-auto-load-safe-path /home/phaptc/ctf/csaw/2018/pwn/doubletrouble/.gdbinit
+line to your configuration file "/home/phaptc/.gdbinit".
+To completely disable this security protection add
+        set auto-load safe-path /
+line to your configuration file "/home/phaptc/.gdbinit".
+For more information about this security protection see the
+"Auto-loading safe path" section in the GDB manual.  E.g., run from the shell:
+        info "(gdb)Auto-loading safe path"
+Reading /lib/ld-linux.so.2 from remote target...
+warning: File transfers from remote targets can be slow. Use "set sysroot" to access files locally instead.
+Reading /lib/ld-linux.so.2 from remote target...
+Reading /lib/ld-2.27.so from remote target...
+Reading /lib/.debug/ld-2.27.so from remote target...
+0xf7fc2c70 in ?? () from target:/lib/ld-linux.so.2
+Breakpoint 1 at 0x8049620
+Breakpoint 2 at 0x8049702
+Breakpoint 3 at 0x804973b
+Reading /lib/i386-linux-gnu/libc.so.6 from remote target...
+Reading /lib/i386-linux-gnu/libc-2.27.so from remote target...
+Reading /lib/i386-linux-gnu/.debug/libc-2.27.so from remote target...
+
+Breakpoint 1, 0x08049620 in game ()
+============ frame info of game func ============
+Stack level 0, frame at 0xff811f80:
+ eip = 0x8049620 in game; saved eip = 0x8049841
+ called by frame at 0xff811fa0
+ Arglist at 0xff811f78, args:
+ Locals at 0xff811f78, Previous frame's sp is 0xff811f80
+ Saved registers:
+  ebx at 0xff811f70, ebp at 0xff811f78, esi at 0xff811f74, eip at 0xff811f7c
+
+============ Our array in stack ============
+0xff811d68:     0xfe01eb0804a12d68      0xfcfc0804bff015ff
+0xff811d78:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811d88:     0xc058c00000000000      0x080498a4ffffffff
+0xff811d98:     0x08060000ff811d68      0xf8ffffffffffffff
+0xff811da8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811db8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811dc8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811dd8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811de8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811df8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e08:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e18:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e28:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e38:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e48:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e58:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e68:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e78:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e88:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e98:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ea8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811eb8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ec8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ed8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ee8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ef8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f08:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f18:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f28:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f38:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f48:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f58:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f68:     0x5224da00ff811f88      0xf7f950000804c000
+0xff811f78:     0x08049841ff811f88      0x00000000ff811fa0
+0xff811f88:     0xf7dd5e8100000000      0xf7f95000f7f95000
+
+============ First 8 double in array ============
+0xff811d68:     -9.3747015790957933e+298        -1.1189208665250963e+294
+0xff811d78:     -6.9244620785013907e+274        -6.9244620785013907e+274
+0xff811d88:     -99     4.8732919059184379e-270
+0xff811d98:     5.2054332225324382e-270 -6.9244620785013907e+274
+
+============ Canary ============
+0xff811f6c:     0x5224da00
+
+============ Double from canary pass eip ============
+0xff811f68:     5.1849870602799843e+87  -8.357784732416409e+269
+0xff811f78:     4.8729344704423525e-270 2.1178876469776779e-314
+
+
+Breakpoint 2, 0x08049702 in game ()
+============ New array size ============
+0xff811d5c:     68
+
+
+Breakpoint 3, 0x0804973b in game ()
+============ After sorting ============
+0xff811d68:     0xfe01eb0804a12d68      0xfcfc0804bff015ff
+0xff811d78:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811d88:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811d98:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811da8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811db8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811dc8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811dd8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811de8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811df8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e08:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e18:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e28:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e38:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e48:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e58:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e68:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e78:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e88:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811e98:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ea8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811eb8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ec8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ed8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ee8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811ef8:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f08:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f18:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f28:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f38:     0xf8ffffffffffffff      0xf8ffffffffffffff
+0xff811f48:     0xf8ffffffffffffff      0xf7f950000804c000
+0xff811f58:     0xc058c00000000000      0x00000000ff811fa0
+0xff811f68:     0x08049841ff811f88      0x080498a4ffffffff
+0xff811f78:     0x08060000ff811d68      0x5224da00ff811f88
+0xff811f88:     0xf7dd5e8100000000      0xf7f95000f7f95000
+
+
+Program received signal SIGABRT, Aborted.
+0xf7fc1059 in __kernel_vsyscall ()
+(gdb)

