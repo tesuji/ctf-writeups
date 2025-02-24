@@ -136,6 +136,7 @@ mangled heap pointers.
 What we have:
 * a double free primitive (chunksize 0x40).
 * a heap address leak in `aHunter` var in `print_player_info`.
+
 What we don't have:
 * a way to write to freed chunks.
 
@@ -153,9 +154,9 @@ This would allow us to use the `tcache_poisoning` technique to gain arb read/wri
 
 hexdump of "helmet" **before** creating overlapping chunk:
 ```
-+0310 0x5647263c1310  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│
-+0320 0x5647263c1320  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== helmet
-+0330 0x5647263c1330  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│A.......│ <== .atk and .defence field
++0310 0x5647263c1310  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│ <== helmet
++0320 0x5647263c1320  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== .atk and .defence field
++0330 0x5647263c1330  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│A.......│
 +0340 0x5647263c1340  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│
 +0350 0x5647263c1350  61 61 61 61 00 00 00 00  41 00 00 00 00 00 00 00  │aaaa....│A.......│ <== chest
 +0330 0x5647263c1330  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│A.......│ <== .atk and .defence field
@@ -165,13 +166,13 @@ hexdump of "helmet" **before** creating overlapping chunk:
 
 hexdump of "helmet" **after** creating overlapping chunk:
 ```
-+0310 0x5647263c1310  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│
-+0320 0x5647263c1320  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== helmet
-+0330 0x5647263c1330  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│ <= fake chunksize
++0310 0x5647263c1310  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│ <== helmet
++0320 0x5647263c1320  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│
++0330 0x5647263c1330  00 00 00 00 00 00 00 00  41 00 00 00 00 00 00 00  │........│A.......│ <== fake chunksize
 +0340 0x5647263c1340  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== overlapped chunk: BEGIN
-+0350 0x5647263c1350  61 61 61 61 00 00 00 00  41 00 00 00 00 00 00 00  │aaaa....│A.......│
-+0340 0x5647263c1340  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== chest
-+0370 0x5647263c1370  61 61 61 61 00 00 00 00  00 00 00 00 00 00 00 00  │aaaa....│........│ ^== overlapped chunk: END
++0350 0x5647263c1350  61 61 61 61 00 00 00 00  41 00 00 00 00 00 00 00  │aaaa....│A.......│ <== chest
++0340 0x5647263c1340  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│ <== overlapped chunk: END
++0370 0x5647263c1370  61 61 61 61 00 00 00 00  00 00 00 00 00 00 00 00  │aaaa....│........│
 +0380 0x5647263c1380  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  │........│........│
 ```
 
@@ -205,17 +206,17 @@ But why? Just compile and run the small C program and you'll see:
 ```c
 void main()
 {
-	long *a = malloc(0x30);
-	long *b = malloc(0x30);
+  long *a = malloc(0x30);
+  long *b = malloc(0x30);
 
-	a[-1] = 0x421;
-	// Uncomment 3 lines below to make it works.
-	//long *c = (void*)((long)&a[-2] + 0x420);
-	//c[1] = 0x21;
-	//c[5] = 0x21;
-	free(a);
-	printf("key  = %#lx\n", a[1]);
-	printf("leak = %#lx\n", a[0]);
+  a[-1] = 0x421;
+  // Uncomment 3 lines below to make it works.
+  //long *c = (void*)((long)&a[-2] + 0x420);
+  //c[1] = 0x21;
+  //c[5] = 0x21;
+  free(a);
+  printf("key  = %#lx\n", a[1]);
+  printf("leak = %#lx\n", a[0]);
 }
 ```
 
