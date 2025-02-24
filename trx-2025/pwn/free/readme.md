@@ -184,17 +184,7 @@ What we now have:
 * an overlapping chunk to do tcache poisoning to gain arb read/write.
 * heap address leaks in `aHunter` var in `print_player_info`.
 
-What we want:
-* a libc leak to:
-  + leak stack address to gain control of saved RIP.
-  + or exploit FSOP on stdout object.
-
-I just chose to rewrite the stack for my taste.
-
-Reasons for requiring libc leak:
-+ there is no IO stream (`FILE *`) objects on the heap to exploit FSOP.
-+ `__free_hook` (or `__malloc_hook`) are not used since glibc 2.34.
-+ glibc is full-RELRO, we cannot overwrite its `.got`.
+What we want: a libc leak to overwrite saved-RIP with.
 
 ---
 
@@ -222,9 +212,18 @@ void main()
 
 ### Using arbitrary read/write to control RIP
 
-Now we have a libc leak. We could leak stack address from `libc.environ` and calculate main saved RIP address.
+Now we have a libc leak. We could enumerate some ways to control RIP:
++ exploit FSOP on stdout object. But FILE size is 0xe0 >> alloc 0x30. So we would have
+  to write multiple times.
++ `__free_hook` (or `__malloc_hook`) are not used since glibc 2.34.
++ glibc is full-RELRO, we cannot overwrite its `.got`.
++ leak stack address to gain control of saved-RIP if `main()`.
+
+Really the most simple way is to rop the stack.
+
+We could leak stack address from `libc.environ` and calculate main saved-RIP address.
 Then write gadgets into main saved RIP.
 
 ## Solve script
 
-This file: [run.py](./run.py).
+[run.py](./run.py).
