@@ -3,6 +3,7 @@
 > To all our Valued Customers, at TRX Bank we aim to provide only
 > the top-notch banking and customer experience; all reports about
 > so-called "data leaks" are baseless slander from our competitors.
+>
 > nc bank.ctf.theromanxpl0.it 7010
 
 ---
@@ -14,16 +15,12 @@ and other solvers have given good hints after the CTF ended.
 ## Vulnerabilities
 
 What we have:
-* a un-init leak in `transfer()` (send `-` in transaction).
+* a un-initialized variable leak in `transfer()` (send `-` in transaction).
   If before calling `transfer`, we call:
-  + `deposit()`:
-    => leak pie (deposit + 266)
-  + `close_account()`:
-    => leak heap via index 29 of `tmp` buf.
-  + `open_account()`:
-    => leak stack address.
-  + invalid option so `puts("invalid")` is called:
-    => leak libc address.
+  + `deposit()` => leak pie (deposit + 266)
+  + `close_account()` => leak heap via index 29 of `tmp` buf.
+  + `open_account()` => leak stack address.
+  + invalid option so `puts("invalid")` is called => leak libc address.
 
 What we can do with that:
 * use `secret_backdor()` (check PIE), to write in range `fp_rand + 0x60:0xd8`.
@@ -65,12 +62,16 @@ we'll pivot the stack via `pop rbp; ret` (in `fclose()`) and `leave; ret`
 ## Caveats
 
 * The `fd_rand` already pre-reads / buffers 0x1000 bytes from `/dev/urandom`.
-  So you have to drain that buffer (by calling open and free acounts repeatedly)
+  So you have to drain that buffer (by calling open and free accounts repeatedly)
   to make it read from stdin by overriding `fp_rand->_fileno = 0` in
   `secret_backdor()`.
 
 * My solve script runs painfully slow on the remote (in fact it's just timeout).
   Kinda hard to optimize it with all the bruteforce for the leaks.
+  **Update**: The remote server will just hang (no output) after
+  changing `fp_rand->_fileno = 0`. I suspect the problem is the socaz program,
+  which may change how fds are opened/mapped to the challenge.
+  But I have no ideas how to debug the jail docker container.
 
 ## Solve script
 
@@ -98,7 +99,7 @@ Demo on local machine:
 [+] draining fp_rand->buffer: Done
 [*]     remaining 0x7 bytes
 [*] Loaded 116 cached gadgets for './glibc/libc.so.6'
-[*] remember to restore fd to be used in fclose(fp_rand)
+[*] restore fd=3 to not close(stdin) accidentally
 [+] duration: 2.1514997482299805
 [*] Switching to interactive mode
 We're sorry to see you go! Your refund will arrive approximately in 83 days!

