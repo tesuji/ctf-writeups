@@ -99,7 +99,6 @@ Demon on local machine:
 [*]     remaining 0x7 bytes
 [*] Loaded 116 cached gadgets for './glibc/libc.so.6'
 [*] remember to restore fd to be used in fclose(fp_rand)
-gdb 1095510
 [+] duration: 2.1514997482299805
 [*] Switching to interactive mode
 We're sorry to see you go! Your refund will arrive approximately in 83 days!

