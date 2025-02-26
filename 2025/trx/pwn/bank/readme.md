@@ -76,7 +76,7 @@ we'll pivot the stack via `pop rbp; ret` (in `fclose()`) and `leave; ret`
 
 [run.py](./run.py)
 
-Demon on local machine:
+Demo on local machine:
 ```bash
 > py run.py
 [+] Starting local process './chal_patched': pid 1095510

