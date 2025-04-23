@@ -2,13 +2,13 @@
 
 ## Challenge Overview
 
+```
 Name: guesswhosstack
 Difficulty: Medium
 Category: pwn
 Author: CaptainNapkins, bronson113
 
 Description:
-```
 Back again, shadys back
 
 Thanks pawnlord for the great name.
@@ -16,7 +16,7 @@ Thanks pawnlord for the great name.
 ncat --ssl guess-who-stack.harkonnen.b01lersc.tf 8443
 ```
 
-Attachment: gueswhosstack.zip
+Attachment: [gueswhosstack.zip](./gueswhosstack.zip)
 
 ## Initial Analysis
 
@@ -34,8 +34,8 @@ Archive:  gueswhosstack.zip
 ```
 
 The binary security settings are good. pwntools's `checksec` says that the binary has no
-canary, however it does have canary stored in main frame. The canary isn't checked back
-(xor) when main returned because main call `exit(0)` directly.
+canary, however, it does have a canary stored in the main frame. The canary isn't checked back
+(xor) when main returned because main calls `exit(0)` directly.
 ```sh
 [*] './chal'
     Arch:       amd64-64-little
@@ -74,7 +74,9 @@ int  main() {
 }
 ```
 
-The program first receives 5 bytes from stdin, then print it directly via printf. This is a famous format vulnerability. In this case, it could be used to leak values on stack, where contains libc addresses, PIE addresses and stack addresses.
+The program first receives 5 bytes from stdin, then prints them directly via printf.
+This is a famous format vulnerability. In this case, it could be used to leak values
+on the stack, which contains libc addresses, PIE addresses, and stack addresses.
 
 It then receives 4 long integers from stdin called `s1, d1, s2, d2`. And perform two arbitrary writes:
 ```c
@@ -88,10 +90,10 @@ always to get shell).
 
 ## Environment setup
 
-Using the provided `Dockerfile` to setup debug environment is needed.
-Since I target `tls_dtor_list` that located inside the TLS section of the program address page. Simply patching the binary via patchelf with custom libc (not system)
+Using the provided `Dockerfile` to set up a debug environment is needed.
+Since I target `tls_dtor_list` that is located inside the TLS section of the program address page. Simply patching the binary via patchelf with custom libc (not system)
 is not enough. Because patching makes TLS mapped after libc. This is a known quirk
-of using patchelf on some linux kernels.
+of using patchelf on some Linux kernels.
 
 > Did you know that you could get the TLS address inside gdb via `p $fs_base` command?
 
@@ -151,7 +153,7 @@ __run_exit_handlers (int status, struct exit_function_list **listp,
 ```
 
 It in turn always calls `__call_tls_dtors` (We will return back to
-`__call_tls_dtors` later). For each `f` in `__exit_funcs->fns` list (notes
+`__call_tls_dtors` later). For each `f` in the `__exit_funcs->fns` list (notes
 that the list is iterated in reversed from the end of the list), if
 `f->flavor == ef_cxa` (hex 0x4), it sets the `f->flavor` to be `ef_free`
 so this `f` cannot be called twice. Then `f->func.cxa.fn` is demangled and called.
@@ -193,7 +195,7 @@ $6 = {
 ```
 
 We could control rip by using arbitrary write to overwrite `__exit_funcs->fns[0]`.
-This is possible since `__exit_funcs->fns[0]` located in a page with `rw` permission.
+This is possible since `__exit_funcs->fns[0]` is located on a page with `rw` permission.
 ```gdb
 gef➤  p &__exit_funcs->fns[0]
 $8 = (struct exit_function *) 0x7ffff7e1bf10 <initial+16>
@@ -216,22 +218,23 @@ gef➤  pipe ptype/ox tcbhead_t | grep pointer_guard
 /* 0x0030      |  0x0008 */    uintptr_t pointer_guard;
 ```
 
-I choose to overwrite `tls->pointer_guard` with 0, so we could skip the xor step in mangle. Hence `PTR_MANGLE` is simplified to `rol address, 17`, which is a rotate-left instruction.
+I chose to overwrite `tls->pointer_guard` with 0, so we could skip the xor step in mangle.
+Hence `PTR_MANGLE` is simplified to `rol address, 17`, which is a rotate-left instruction.
 
 ### Hope is lost ?
 
-What's the `address` to give us the shell? Since we have no controls over `fns[0]->args`
-when `address` is called. And there's no valid onegadgets to spawn a shell for us.
+What's the `address` to give us the shell? Since we have no control over `fns[0]->args`
+when `address` is called. And there's no valid one-gadgets to spawn a shell for us.
 We have to restart the `main()` function instead. Luckily with glibc, there's always a
-`main` address located on after main's stack frame.
+`main` address is located after the main's stack frame.
 By using a gadget to `add rsp, 0x158; ret`, we return to `main()` again.
 
 ### Back to `tls_dtor_list`
 
 Now we're in `main` again. Unfortunately, we cannot use `__exit_funcs` to control rip
-since `f->flavor` set to `ef_free`, which does nothing when iterated over.
+since `f->flavor` is set to `ef_free`, which does nothing when iterated over.
 And `__exit_funcs->idx` has been decreased to 0. So we need at least **3** writes to
-make it works again.
+make it work again.
 
 Luckily, there's [`__call_tls_dtors`] which is always called by `__run_exit_handlers`.
 ```c
@@ -252,7 +255,7 @@ __call_tls_dtors (void)
 ```
 
 We can call an arbitrary address by overwriting `tls_dtor_list`. This is possible
-since `tls_dtor_list` located on the same page as TLS, which has rw permission.
+since `tls_dtor_list` is located on the same page as TLS, which has RW permission.
 
 ```gdb
 gef➤  vmmap &tls_dtor_list
@@ -266,11 +269,11 @@ type = struct dtor_list {
 ```
 
 However, we still have no control over `cur->obj`, so we have to be clever.
-We need `tls_dtor_list->next` to point to a known address (non NULL) so we could
+We need `tls_dtor_list->next` to point to a known address (non-NULL) so we can
 control `obj` later. By choosing `tls_dtor_list = __libc_argv - 0x18`,
 `tls_dtor_list->next` will be `__libc_argv`.
 
-So in this step we leak binary PIE address and call back to `main()`.
+So in this step we leak the binary PIE address and call back to `main()`.
 
 ### Win
 
@@ -285,7 +288,7 @@ Vulnerability exploited:
 
 ## Final exploit
 
-Please view [./run.py](./run.py).
+Please view [run.py](./run.py).
 Demo on remote:
 ```bash
 > python run.py REMOTE
@@ -318,5 +321,8 @@ $
 
 ### Alternative (simpler) approaches
 
-The challenge author posted their exploit script right after the event ended. Their solution involves overwriting libc GOT of `__memmove_evex_unaligned_erms` that called in `printf` with `gets()`. And overwriting `__memchr_evex` called in `gets()`.
-For more information, please view [./run-author.py](./run-author.py).
+The challenge author posted their exploit script right after the event ended.
+Their solution involves overwriting libc GOT of `__memmove_evex_unaligned_erms`
+that is called in `printf` with `gets()`. And overwriting `__memchr_evex` called
+in `gets()`.
+For more information, please view [run-author.py](./run-author.py).
