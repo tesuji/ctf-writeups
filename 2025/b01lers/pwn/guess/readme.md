@@ -1,6 +1,6 @@
 # How to gain a shell in `exit()` with a leak and two arbitrary writes
 
-## Challenge Overview
+## Challenge overview
 
 ```
 Name: guesswhosstack
@@ -18,7 +18,7 @@ ncat --ssl guess-who-stack.harkonnen.b01lersc.tf 8443
 
 Attachment: [gueswhosstack.zip](./gueswhosstack.zip)
 
-## Initial Analysis
+## Initial analysis
 
 Extract the provided zip attachment, we have C source file and associated Dockerfile:
 ```sh
@@ -76,9 +76,13 @@ int  main() {
 
 The program first receives 5 bytes from stdin, then prints them directly via printf.
 This is a famous format vulnerability. In this case, it could be used to leak values
-on the stack, which contains libc addresses, PIE addresses, and stack addresses.
+on the stack, which contains libc, PIE, or stack addresses. However, since the format
+string is only 5 bytes in length, we can only leak one kind of address via `%{index}$p`
+syntax, where `index` is a number from range 1 up to 99. With gdb, we can set the
+breakpoint at `printf(first_shot);` and examine the stack to calculate the useful indexes.
 
-It then receives 4 long integers from stdin called `s1, d1, s2, d2`. And perform two arbitrary writes:
+The program then receives 4 long integers from stdin called `s1, d1, s2, d2`.
+And perform two arbitrary writes:
 ```c
     *(long *) s1 = d1;
     *(long *) s2 = d2;
@@ -86,16 +90,19 @@ It then receives 4 long integers from stdin called `s1, d1, s2, d2`. And perform
 
 Since the program call `exit()` directly, I decided to attack `tls_dtor_list` array
 that was called inside `exit()` to gain arbitrary executions (the ultimate goal is
-always to get shell).
+always to get the shell).
 
 ## Environment setup
 
 Using the provided `Dockerfile` to set up a debug environment is needed.
 Since I target `tls_dtor_list` that is located inside the TLS section of the program address page. Simply patching the binary via patchelf with custom libc (not system)
-is not enough. Because patching makes TLS mapped after libc. This is a known quirk
-of using patchelf on some Linux kernels.
+is not enough. Because patching makes TLS mapped after libc. Which is not the usual case
+for programs running with system libc. This is a known quirk of using RUNPATH patched
+binaries on some Linux kernels.
 
-> Did you know that you could get the TLS address inside gdb via `p $fs_base` command?
+Did you know that you could get the TLS address inside gdb via `p $fs_base` command?
+And TLS is usually mapped right before libc so if we have a libc leak, we can compute
+TLS address by subtracting a constant offset from the libc's base.
 
 ## Dive into `exit()`
 
@@ -152,11 +159,11 @@ __run_exit_handlers (int status, struct exit_function_list **listp,
         free (cur);
 ```
 
-It in turn always calls `__call_tls_dtors` (We will return back to
-`__call_tls_dtors` later). For each `f` in the `__exit_funcs->fns` list (notes
-that the list is iterated in reversed from the end of the list), if
-`f->flavor == ef_cxa` (hex 0x4), it sets the `f->flavor` to be `ef_free`
-so this `f` cannot be called twice. Then `f->func.cxa.fn` is demangled and called.
+It in turn always calls `__call_tls_dtors` (We will get back to it later).
+For each `f` in the `__exit_funcs->fns` list (notes that the list is iterated in
+reversed from the end of the list), if `f->flavor == ef_cxa` (hex 0x4), it sets
+the `f->flavor` to be `ef_free` so this `f` cannot be called twice.
+Then `f->func.cxa.fn` is de-mangled and called.
 
 In gdb, you could view this `__exit_funcs` variable
 ```gdb
@@ -195,7 +202,8 @@ $6 = {
 ```
 
 We could control rip by using arbitrary write to overwrite `__exit_funcs->fns[0]`.
-This is possible since `__exit_funcs->fns[0]` is located on a page with `rw` permission.
+This is possible since `__exit_funcs->fns[0]` is located on a libc's page mapped
+with `rw` permission.
 ```gdb
 gef➤  p &__exit_funcs->fns[0]
 $8 = (struct exit_function *) 0x7ffff7e1bf10 <initial+16>
@@ -203,8 +211,8 @@ gef➤  vmmap 0x7ffff7e1bf10
 0x00007ffff7e1a000 0x00007ffff7e1c000 0x0000000000219000 rw- /usr/lib/x86_64-linux-gnu/libc.so.6
 ```
 
-But we need to understand how to mangle our gadget pointers to defeat
-`PTR_DEMANGLE (cxafct)`. The [libc code][ptr_mangle] to (de)mangle pointer is pretty simple (note this is AT&T syntax):
+But we need to understand how to mangle our addresses to defeat `PTR_DEMANGLE (cxafct)`.
+The [libc code][ptr_mangle] to (de)mangle pointer is pretty simple (note this is AT&T syntax, where the destination arguments are on the right):
 ```c
 #  define PTR_MANGLE(reg)       xor %fs:POINTER_GUARD, reg;                   \
                                 rol $2*LP_SIZE+1, reg
@@ -212,7 +220,8 @@ But we need to understand how to mangle our gadget pointers to defeat
                                 xor %fs:POINTER_GUARD, reg
 ```
 
-Here [`POINTER_GUARD`][guard] is `offsetof (tcbhead_t, pointer_guard)`, which is 0x30 on x86_64. You could also rely on gdb to find the offset for you.
+Here [`POINTER_GUARD`][guard] is `offsetof (tcbhead_t, pointer_guard)`, which is `0x30`
+on x86_64. You could also rely on gdb to find the offset for you.
 ```gdb
 gef➤  pipe ptype/ox tcbhead_t | grep pointer_guard
 /* 0x0030      |  0x0008 */    uintptr_t pointer_guard;
@@ -226,14 +235,14 @@ Hence `PTR_MANGLE` is simplified to `rol address, 17`, which is a rotate-left in
 What's the `address` to give us the shell? Since we have no control over `fns[0]->args`
 when `address` is called. And there's no valid one-gadgets to spawn a shell for us.
 We have to restart the `main()` function instead. Luckily with glibc, there's always a
-`main` address is located after the main's stack frame.
-By using a gadget to `add rsp, 0x158; ret`, we return to `main()` again.
+`main` address located after the main's stack frame.
+By using the gadget `add rsp, 0x158; ret`, we return to `main()` again.
 
 ### Back to `tls_dtor_list`
 
-Now we're in `main` again. Unfortunately, we cannot use `__exit_funcs` to control rip
-since `f->flavor` is set to `ef_free`, which does nothing when iterated over.
-And `__exit_funcs->idx` has been decreased to 0. So we need at least **3** writes to
+Now we're in `main`. Unfortunately, we cannot re-use `__exit_funcs` to control rip
+since `f->flavor` was set to `ef_free`, which does nothing when iterated over.
+And `__exit_funcs->idx` was decreased to 0. So we need at least **3 writes** to
 make it work again.
 
 Luckily, there's [`__call_tls_dtors`] which is always called by `__run_exit_handlers`.
@@ -255,7 +264,7 @@ __call_tls_dtors (void)
 ```
 
 We can call an arbitrary address by overwriting `tls_dtor_list`. This is possible
-since `tls_dtor_list` is located on the same page as TLS, which has RW permission.
+since `tls_dtor_list` is located on the same page as TLS.
 
 ```gdb
 gef➤  vmmap &tls_dtor_list
@@ -270,15 +279,17 @@ type = struct dtor_list {
 
 However, we still have no control over `cur->obj`, so we have to be clever.
 We need `tls_dtor_list->next` to point to a known address (non-NULL) so we can
-control `obj` later. By choosing `tls_dtor_list = __libc_argv - 0x18`,
+control `obj` later. By choosing `tls_dtor_list = &__libc_argv - 0x18`,
 `tls_dtor_list->next` will be `__libc_argv`.
 
 So in this step we leak the binary PIE address and call back to `main()`.
 
 ### Win
 
-By leaking stack addresses and overwriting `__libc_argv` in the next call,
-we control `cur->func` and `cur->obj`. That could be used to call `system("/bin/sh")`.
+This time `tls_dtor_list` is equal to `__libc_argv`. By overwriting `__libc_argv` and
+`__libc_argv + 8`, we can control `cur->func` and `cur->obj`. That could be used to
+call `system("/bin/sh")`. That's easy since we can leak stack addresses because we're
+in `main()` again.
 
 ## Key insights
 
